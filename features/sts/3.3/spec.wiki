@@ -1,0 +1,38 @@
+= Overview =
+In general, there are three types of password change:
+
+# password change to a new one
+# password change of an expired password
+# password reset of a forgotten password
+
+For (1) and (3) procedures are pretty clear. For (1) the user just needs to enter the old password and a new one. For (3) they need to go through a password reset procedure of some kind. For (2), there is no well-defined way to do, it can be either a password change (like for (1)) or a password reset (like for (3))."
+
+We are planning for 3.3 to support password change for cases 1 and 2, and that they be handled the same way for 3.3 (i.e. enter old, enter new, confirm new).  We will use this solution and then add in password change type #3 and the more secure reset methodology as an enhancement for a future release (with the more secure methodology as a configurable option that could be used for #2 as well if the cloud admin wants that).
+
+== Operations ==
+
+Currently password based authentication is done using basic HTTP Auth:
+
+# The HTTP request passes encoded values through the '''Authorization''' header.  
+# The passed values are processed in <code>TokensQueryPipeline</code>.  
+# <code>TokensQueryPipeline</code> submits an instance of <code>AccountUsernamePasswordCredentials</code> with the needed bits
+# <code>PasswordLoginModule</code> verifies the existence of the related accound and user.
+# <code>PasswordLoginModule</code> attempts to call <code>PasswordAuthentication.authenticate</code>
+# If <code>PasswordAuthentication.authenticate</code> succeeds, then <code>PasswordLoginModule</code> checks for expiration.
+# If the password is expired a <code>CredentialExpiredException</code> is produced.
+
+For 3.3 the plan is to allow for a user to supply a ''new-password'' that should be used to update the password value for the user in two cases:
+
+=== #1 Password Change ===
+
+=== #2 Password Expired ===
+In this case, a previous call to obtain a token resulted in <code>CredentialExpiredException</code> and the expected behaviour of the caller is to prompt user for a ''new-password'' and resubmit the request with old and new password information.
+
+=== Handling New Password ===
+The following changes are needed:
+# The new password has to be included in the request '''somehow'''
+# The new password has to be checked before throwing <code>CredentialExpiredException</code> as this is an attempt to update.
+# The new password has to be checked on a valid current password as it may also be an attempt to update the password.
+# When the new password is provided in one of the above cases, the user's password should be updated.
+
+The defaults we currently have are contradictory. Cloud default has user passwords expire, but default prevents user from changing password. If no action taken by admin pw expires and user can't reset it. Until we have canned IAM policies admin can choose from, the default password expiration should be ''never''. The admin can always set this to expire. 
